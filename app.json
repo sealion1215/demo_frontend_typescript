@@ -3,8 +3,8 @@
     "name": "demo_frontend_typescript",
     "slug": "demo_frontend_typescript",
     "platforms": [
-      "ios",
       "android",
+      "ios",
       "web"
     ],
     "version": "1.0.0",
