@@ -1,7 +1,7 @@
 import React, { PureComponent } from 'react';
-import { Camera, CameraCapturedPicture } from 'expo-camera';
+import { Camera } from 'expo-camera';
 import * as Permissions from 'expo-permissions';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { Button, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import config from './config';
 
 interface IOCRProperty {}
@@ -19,11 +19,12 @@ export default class OCRApp extends PureComponent<IOCRProperty, IOCRState> {
     super(props);
     this.cameraReady = this.cameraReady.bind(this);
     this.snap = this.snap.bind(this);
+    this.convertImageToBase64 = this.convertImageToBase64.bind(this);
     this.state = {
       hasCameraPermission: false,
       type: Camera.Constants.Type.back,
       cameraReady: false,
-      useSavedPicture: true,
+      useSavedPicture: false,
       textContent: 'Hello World 32!'
     };
   }
@@ -54,7 +55,7 @@ export default class OCRApp extends PureComponent<IOCRProperty, IOCRState> {
     },
     textStyle: {
       alignSelf: 'center',
-      fontSize: 30
+      fontSize: 20
     }
   });
   
@@ -69,15 +70,9 @@ export default class OCRApp extends PureComponent<IOCRProperty, IOCRState> {
 
   snap = async () => {
     console.log('taking picture');
-    const { cameraReady, useSavedPicture } = this.state;
-    if (this.camera && cameraReady) {
-      const options = {
-        quality: 1,
-        base64: true
-      }
-      const picture = await this.camera.takePictureAsync(options);
-      let imageToServer = await this.convertImageToBase64(useSavedPicture, picture);
-      console.log(picture.uri===imageToServer);
+    const { useSavedPicture } = this.state; 
+    let imageToServer = await this.convertImageToBase64(useSavedPicture);
+    if (imageToServer !== '') {
       let url = config.SERVER_BASE_URL+'/ocrreaders/english';
       fetch(url, {
         method: 'POST',
@@ -97,11 +92,12 @@ export default class OCRApp extends PureComponent<IOCRProperty, IOCRState> {
       }).catch(error => {
         console.log('error: ');
         console.log(error);
-      })
+      });
     }
   }
 
-  convertImageToBase64 = async (useSavedPicture: boolean, picture: CameraCapturedPicture) => {
+  convertImageToBase64 = async (useSavedPicture: boolean) => {
+    const { cameraReady } = this.state;
     if (useSavedPicture) {
       return new Promise<string>(resolve => {
         const canvas = document.createElement('canvas');
@@ -115,33 +111,67 @@ export default class OCRApp extends PureComponent<IOCRProperty, IOCRState> {
         }
       });
     } else {
-      return picture.uri;
+      const options = {
+        quality: 1,
+        base64: true
+      }
+      if (this.camera && cameraReady) {
+        const picture = await this.camera.takePictureAsync(options);
+        return picture.uri;
+      }
+      return '';
     }  
   }
 
   render() {
-    const { type, textContent } = this.state;
+    const { type, textContent, useSavedPicture } = this.state;
     return (
-      <View style={{flex: 1}}>
-        <Camera
-          ref={(ref: any) => this.camera = ref}
-          style={{flex: 1}}
-          type={type}
-          flashMode={Camera.Constants.FlashMode.auto}
-          onCameraReady={this.cameraReady}
+      <View 
+        // style={{flex: 1}}
+      >
+        {/* <View style={{flex: 0.1}}>
+          <Text style={this.styles.textStyle}>
+            {'Optical Character Recognition'}
+          </Text>
+          
+        </View> */}
+        {/* <View style={{flex: 0.8}}> */}
+          {
+            useSavedPicture?
+            <View>
+              <img src={require('./test_images/A.jpg')}/>
+              <Button
+                onPress={this.snap}
+                title="Identify picture"
+                color="#841584"
+                accessibilityLabel="Identify picture"
+              /> 
+            </View>:
+            <View style={{flex: 0.8}}>
+              <Camera
+                ref={(ref: any) => this.camera = ref}
+                style={{flex: 1, height: '80%'}}
+                type={type}
+                flashMode={Camera.Constants.FlashMode.auto}
+                onCameraReady={this.cameraReady}
+              >
+                <View style={this.styles.cameraInterior}>
+                  <TouchableOpacity 
+                    style={{alignSelf: 'center'}}
+                    onPress={this.snap}
+                  >
+                    <View style={this.styles.buttonExterior}>
+                      <View style={this.styles.buttonInterior}/>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </Camera>
+            </View>  
+          }
+        {/* </View> */}
+        <View 
+          style={{flex: 0.1, height: '10%'}}
         >
-          <View style={this.styles.cameraInterior}>
-            <TouchableOpacity 
-              style={{alignSelf: 'center'}}
-              onPress={this.snap}
-            >
-              <View style={this.styles.buttonExterior}>
-                <View style={this.styles.buttonInterior}/>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </Camera>
-        <View style={{flex: 0.125}}>
           <Text style={this.styles.textStyle}>
             {textContent}
           </Text>
